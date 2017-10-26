@@ -1,6 +1,9 @@
 package mapreduce
 
-import "fmt"
+import (
+	"fmt"
+	"sync"
+)
 
 //
 // schedule() starts and waits for all tasks in the given phase (Map
@@ -32,5 +35,62 @@ func schedule(jobName string, mapFiles []string, nReduce int, phase jobPhase, re
 	//
 	// TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
 	//
+
+	var waitgroup sync.WaitGroup
+	for i := 0; i < ntasks; i++ {
+		waitgroup.Add(1)
+		dotaskarg := DoTaskArgs{}
+		dotaskarg.JobName = jobName
+		dotaskarg.Phase = phase
+		// dotaskarg.TaskNumber = ntasks
+		dotaskarg.NumOtherPhase = n_other
+		dotaskarg.File = mapFiles[i]
+		// dotaskarg.TaskNumber = i
+		go func(file int) {
+			defer waitgroup.Done()
+			for {
+				fmt.Printf("file: %d == %d \n", file, dotaskarg.TaskNumber)
+				workerAddress := <-registerChan
+				// for loop until task successed
+				dotaskarg.TaskNumber = file
+				if call(workerAddress, "Worker.DoTask", &dotaskarg, nil) == true {
+					// 非常关键，完成后再将 worker 放回
+					go func() { registerChan <- workerAddress }()
+					break
+				}
+				fmt.Println("map %v Done", file)
+			}
+		}(i)
+	}
+	waitgroup.Wait()
 	fmt.Printf("Schedule: %v phase done\n", phase)
 }
+
+// 	var wait_group sync.WaitGroup
+// 	for i := 0; i < ntasks; i++ {
+// 		wait_group.Add(1)
+// 		var taskArgs DoTaskArgs
+// 		taskArgs.JobName = jobName
+// 		taskArgs.Phase = phase
+// 		taskArgs.NumOtherPhase = n_other
+// 		taskArgs.TaskNumber = i
+// 		if phase == mapPhase {
+// 			taskArgs.File = mapFiles[i]
+// 		}
+// 		go func() {
+// 			// fmt.Printf("Now: %dth task\n", task_id)
+// 			defer wait_group.Done()
+// 			// 加入无限循环，只要任务没完成，就换个 worker 执行
+// 			for {
+// 				worker := <-registerChan
+// 				if call(worker, "Worker.DoTask", &taskArgs, nil) == true {
+// 					// 非常关键，完成后再将 worker 放回
+// 					go func() { registerChan <- worker }()
+// 					break
+// 				}
+// 			}
+// 		}()
+// 	}
+// 	wait_group.Wait()
+// 	fmt.Printf("Schedule: %v phase done\n", phase)
+// }

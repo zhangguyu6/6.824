@@ -2,6 +2,7 @@ package mapreduce
 
 import (
 	"encoding/json"
+	"fmt"
 	"hash/fnv"
 	"io/ioutil"
 	"os"
@@ -69,19 +70,41 @@ func doMap(
 	checkerr(err)
 	contents := string(contentbytes[:])
 	KeyValues := mapF(inFile, contents)
+	mapkv := make(map[string][]KeyValue)
 	for _, kv := range KeyValues {
+		// fmt.Println(kv.Key, nReduce)
 		r := ihash(kv.Key) % nReduce
 		intermediateFile := reduceName(jobName, mapTaskNumber, r)
-		emit(intermediateFile, &kv)
+		fmt.Printf("interfilename is %s %v %v\n", jobName, mapTaskNumber, r)
+		kvlist, ok := mapkv[intermediateFile]
+		if ok {
+			mapkv[intermediateFile] = append(kvlist, kv)
+		} else {
+			mapkv[intermediateFile] = []KeyValue{kv}
+		}
+	}
+	fmt.Println("doMap start write Map output")
+	for outFile, kvs := range mapkv {
+		emit(outFile, kvs)
 	}
 	file.Close()
 }
 
-func emit(outFile string, kv *KeyValue) {
-	file, err := os.Create(outFile)
-	checkerr(err)
+func emit(outFile string, kvs []KeyValue) {
+	fmt.Printf("write File %s\n", outFile)
+	var file *os.File
+	_, err := os.Stat(outFile)
+	if os.IsExist(err) {
+		file, err = os.Open(outFile)
+		checkerr(err)
+	} else {
+		file, err = os.Create(outFile)
+		checkerr(err)
+	}
 	enc := json.NewEncoder(file)
-	err = enc.Encode(kv)
+	for _, kv := range kvs {
+		err = enc.Encode(kv)
+	}
 	checkerr(err)
 	file.Close()
 }
