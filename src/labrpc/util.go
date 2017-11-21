@@ -1,9 +1,7 @@
-package raft
+package labrpc
 
 import (
 	"log"
-	"math/rand"
-	"time"
 )
 
 // Debugging
@@ -14,9 +12,4 @@ func DPrintf(format string, a ...interface{}) (n int, err error) {
 		log.Printf(format, a...)
 	}
 	return
-}
-
-func random(min, max int) int {
-	rand.Seed(time.Now().Unix())
-	return rand.Intn(max-min) + min
 }

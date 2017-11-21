@@ -86,14 +86,12 @@ func (e *ClientEnd) Call(svcMeth string, args interface{}, reply interface{}) bo
 	req.svcMeth = svcMeth
 	req.argsType = reflect.TypeOf(args)
 	req.replyCh = make(chan replyMsg)
-
 	qb := new(bytes.Buffer)
 	qe := gob.NewEncoder(qb)
 	qe.Encode(args)
 	req.args = qb.Bytes()
 
 	e.ch <- req
-
 	rep := <-req.replyCh
 	if rep.ok {
 		rb := bytes.NewBuffer(rep.reply)
